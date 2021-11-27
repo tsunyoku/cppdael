@@ -183,6 +183,6 @@ private:
 	int t[MAX_BC];
 };
 
-std::string decrypt_string(const std::string &Input, const std::string &K, const std::string &IV)
+std::string decrypt_string(const std::string &Input, const std::string &K, const std::string &IV);
 
 #endif // __RIJNDAEL_H__

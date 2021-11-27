@@ -2,10 +2,6 @@
 #include <iostream>
 #include "rijndael.h"
 
-#define ZeroArray(s) memset(s,0,sizeof(s))
-
-namespace py = pybind11;
-
 std::string remove_chars(const std::string str, char* charsToRemove)
 {
     char c[str.length()+1];

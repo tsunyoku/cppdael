@@ -1375,6 +1375,7 @@ void CRijndael::Decrypt(char const* in, char* result, size_t n, int iMode)
 	}
 }
 
+#define ZeroArray(s) memset(s,0,sizeof(s))
 std::string decrypt_string(const std::string &Input, const std::string &K, const std::string &IV) {
 
 	if (!Input.size() || !IV.size() || !K.size())return "";
