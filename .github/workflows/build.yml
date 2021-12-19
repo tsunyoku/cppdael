@@ -33,9 +33,6 @@ jobs:
         ]
         architecture: ["x86", "x64"]
 
-    steps:
-    - uses: actions/checkout@v2
-
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.os }} ${{ matrix.architecture }} - ${{ matrix.python-version }}
     env:
