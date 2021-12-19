@@ -71,12 +71,32 @@ Rijndael_getRounds(RijndaelObject *self, void *closure)
     return PyLong_FromLong(self->rj->GetRounds());
 }
 
+static PyObject *
+Rijndael_getMode(RijndaelObject *self, void *closure)
+{
+    return PyLong_FromLong((long)self->mode);
+}
+
+static int
+Rijndael_setMode(RijndaelObject *self, PyObject *value, void *closure)
+{
+    unsigned long mode = PyLong_AsUnsignedLong(value);
+    if (mode > CRijndael::CFB)
+    {
+        PyErr_SetString(PyExc_ValueError, "invalid mode (ECB = 0, CBC = 1, CFB = 2)");
+        return -1;
+    }
+    self->mode = (uint8_t)mode;
+    return 0;
+}
+
 static PyGetSetDef Rijndael_getsetters[] = {
     {"key_length", (getter)Rijndael_getKeyLength, NULL,
      "length of the key", NULL},
     {"block_size", (getter)Rijndael_getBlockSize, NULL,
      "size of the block", NULL},
     {"rounds", (getter)Rijndael_getRounds, NULL, "number of rounds", NULL},
+    {"mode", (getter)Rijndael_getMode, (setter)Rijndael_setMode, "encryption mode", NULL},
     {NULL} /* Sentinel */
 };
 
@@ -88,9 +108,9 @@ static PyObject *Rijndael_EncryptBlock(RijndaelObject *self, PyObject *args)
 
     if (!PyArg_ParseTuple(args, "y#", &in, &in_size))
         return NULL;
-    out = (char*)PyMem_Malloc(in_size);
+    out = (char *)PyMem_Malloc(in_size);
     self->rj->EncryptBlock(in, out);
-    PyObject* ret = PyBytes_FromStringAndSize(out, in_size);
+    PyObject *ret = PyBytes_FromStringAndSize(out, in_size);
     PyMem_Free(out);
     return ret;
 }
@@ -103,9 +123,9 @@ static PyObject *Rijndael_DecryptBlock(RijndaelObject *self, PyObject *args)
 
     if (!PyArg_ParseTuple(args, "y#", &in, &in_size))
         return NULL;
-    out = (char*)PyMem_Malloc(in_size);
+    out = (char *)PyMem_Malloc(in_size);
     self->rj->DecryptBlock(in, out);
-    PyObject* ret = PyBytes_FromStringAndSize(out, in_size);
+    PyObject *ret = PyBytes_FromStringAndSize(out, in_size);
     PyMem_Free(out);
     return ret;
 }
@@ -118,9 +138,9 @@ static PyObject *Rijndael_Encrypt(RijndaelObject *self, PyObject *args)
 
     if (!PyArg_ParseTuple(args, "y#", &in, &in_size))
         return NULL;
-    out = (char*)PyMem_Malloc(in_size);
+    out = (char *)PyMem_Malloc(in_size);
     self->rj->Encrypt(in, out, in_size, self->mode);
-    PyObject* ret = PyBytes_FromStringAndSize(out, in_size);
+    PyObject *ret = PyBytes_FromStringAndSize(out, in_size);
     PyMem_Free(out);
     return ret;
 }
@@ -133,9 +153,9 @@ static PyObject *Rijndael_Decrypt(RijndaelObject *self, PyObject *args)
 
     if (!PyArg_ParseTuple(args, "y#", &in, &in_size))
         return NULL;
-    out = (char*)PyMem_Malloc(in_size);
+    out = (char *)PyMem_Malloc(in_size);
     self->rj->Decrypt(in, out, in_size, self->mode);
-    PyObject* ret = PyBytes_FromStringAndSize(out, in_size);
+    PyObject *ret = PyBytes_FromStringAndSize(out, in_size);
     PyMem_Free(out);
     return ret;
 }
@@ -198,13 +218,13 @@ static PyTypeObject RijndaelType = {
     PyType_GenericNew,                                                /* tp_new */
 };
 
-static PyObject* decrypt_string(PyObject *self, PyObject *args)
+static PyObject *decrypt_string(PyObject *self, PyObject *args)
 {
-    char* input;
+    char *input;
     Py_ssize_t input_size;
-    char* key;
+    char *key;
     Py_ssize_t key_size;
-    char* iv;
+    char *iv;
     Py_ssize_t iv_size;
     if (!PyArg_ParseTuple(args, "s#s#s#", &input, &input_size, &key, &key_size, &iv, &iv_size))
         return NULL;
@@ -215,20 +235,17 @@ static PyObject* decrypt_string(PyObject *self, PyObject *args)
     return PyBytes_FromStringAndSize(ret.c_str(), ret.length());
 }
 
-
 // Exported methods are collected in a table
 static struct PyMethodDef method_table[] = {
     {"decrypt_string",
      (PyCFunction)decrypt_string,
      METH_VARARGS,
-     ""
-    },
+     ""},
     {NULL,
      NULL,
      0,
      NULL} // Sentinel value ending the table
 };
-
 
 static PyModuleDef cppdael_module = {
     PyModuleDef_HEAD_INIT,
