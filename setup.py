@@ -1,3 +1,4 @@
+import sys
 from setuptools import setup, Extension
 
 with open("README.md", "r") as fh:
@@ -25,7 +26,7 @@ setup(
             "cppdael",
             ["extension.cpp", "rijndael.cpp"],
             language="c++",
-            extra_compile_args=["/std=c++20"], # most compilers already use -03 or -02
+            extra_compile_args=["{}std=c++20".format('/' if sys.platform == "win32" else '-')], # most compilers already use -03 or -02
         )
     ],
 )
