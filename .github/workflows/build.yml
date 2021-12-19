@@ -17,25 +17,58 @@ jobs:
 
     strategy:
       matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
+      fail-fast: false
+      matrix:
+        os: [
+          "ubuntu-latest",
+          "macOS-latest",
+          "windows-latest"
+        ]
+        python-version: [
+          #"3.10", not yet available on ubuntu
+          "3.9",
+          "3.8",
+          "3.7",
+          #"3.6" not available anymore on macOS
+        ]
+        architecture: ["x86", "x64"]
 
     steps:
     - uses: actions/checkout@v2
 
-    - name: Configure CMake
-      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
-      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: cmake -B ${{github.workspace}}/build -D CMAKE_INSTALL_LIBDIR=${{github.workspace}}/lib -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} ${{github.workspace}}
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.os }} ${{ matrix.architecture }} - ${{ matrix.python-version }}
+    env:
+      DEPENDENCIES: pycryptodome py3rijndael
 
-    - name: Build
-      # Build your program with the given configuration
-      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+    steps:
+    - uses: actions/checkout@v2
 
-    - name: Install
-      run: cmake --install ${{github.workspace}}/build
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install --upgrade wheel setuptools twine
+        pip install pytest ${{ env.DEPENDENCIES }}
+    
+    # - name: Install module
+    #   run: |
+    #     pip install . --use-feature=in-tree-build
+    
+    # - name: Test with pytest
+    #   run: |
+    #     pytest -v -s
+
+    - name: Build artifact
+      run: |
+        python setup.py build_ext --inplace
 
     - name: Upload artifact
       uses: actions/upload-artifact@v2
       with:
         name: cppdael-${{ matrix.os }}-${{ env.BUILD_TYPE }}
-        path: ${{github.workspace}}/lib/*
+        path: ${{github.workspace}}/cppdael.cp*-*.*
