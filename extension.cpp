@@ -325,7 +325,6 @@ static PyObject *decrypt(PyObject *self, PyObject *args)
     memcpy(Key, key, (key_size > 32) ? 32 : key_size);
     memcpy(IV, iv, (iv_size > 32) ? 32 : iv_size);
 
-
     // decrypt
     char *out = (char *)PyMem_Malloc(input_size);
     PyObject *ret = NULL;
@@ -389,7 +388,6 @@ static PyObject *encrypt(PyObject *self, PyObject *args)
 
     memcpy(Key, key, (key_size > 32) ? 32 : key_size);
     memcpy(IV, iv, (iv_size > 32) ? 32 : iv_size);
-
 
     // encrypt
     char *out = (char *)PyMem_Malloc(input_size);
