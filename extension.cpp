@@ -19,8 +19,8 @@ Rijndael_init(RijndaelObject *self, PyObject *args, PyObject *kwds)
     char *iv;
     Py_ssize_t iv_size;
     int hard_key_size = 0;
-    if (!PyArg_ParseTuple(args, "iiy#y#y#|i", &mode, &block_size, &key, &key_size, &iv, &iv_size, &hard_key_size))
-        return NULL;
+    if (!PyArg_ParseTuple(args, "iiy#y#|i", &mode, &block_size, &key, &key_size, &iv, &iv_size, &hard_key_size))
+        return -1;
 
     // check input
     if (mode > CRijndael::CFB)
@@ -461,5 +461,9 @@ PyInit_cppdael(void)
         return NULL;
     }
 
+    /* add enum values as object */
+    PyModule_AddObject(m, "MODE_CFB", PyLong_FromLong(CRijndael::CFB));
+    PyModule_AddObject(m, "MODE_CBC", PyLong_FromLong(CRijndael::CBC));
+    PyModule_AddObject(m, "MODE_ECB", PyLong_FromLong(CRijndael::ECB));
     return m;
 }
