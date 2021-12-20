@@ -42,13 +42,13 @@ jobs:
         pip install --upgrade wheel setuptools twine
         pip install pytest ${{ env.DEPENDENCIES }}
     
-    # - name: Install module
-    #   run: |
-    #     pip install . --use-feature=in-tree-build
+    - name: Install module
+      run: |
+        pip install . --use-feature=in-tree-build
     
-    # - name: Test with pytest
-    #   run: |
-    #     pytest -v -s
+    - name: Test with pytest
+      run: |
+        pytest tests/example.py
 
     - name: Build artifact
       run: |

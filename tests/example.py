@@ -30,6 +30,9 @@ def decrypt_py():
     aes = RijndaelCbc(key=key, iv=iv, padding=ZeroPadding(32), block_size=32)
     return aes.decrypt(cipher)
 
+# generate tests for pytest
+for func in [decrypt_cpp_string, decrypt_cpp_bytes, decrypt_cpp_cls, decrypt_py]:
+    exec(f"def test_{func.__name__}():\n    assert func() == decrypted_value")
 
 if __name__ == "__main__":
     tests = []
