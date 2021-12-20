@@ -12,17 +12,15 @@ typedef struct
 static int
 Rijndael_init(RijndaelObject *self, PyObject *args, PyObject *kwds)
 {
-    // parse the arguments
-    uint8_t mode;
-    uint16_t block_size;
+    int mode;
+    int block_size;
     char *key;
-    uint16_t key_size;
+    Py_ssize_t key_size;
     char *iv;
-    uint16_t iv_size;
-    uint8_t hard_key_size = 0;
-    // mode, key, iv, key_size, block_size
-    if (!PyArg_ParseTuple(args, "bHy#y#|H", &mode, &block_size, &key_size, &key, &key_size, &iv, &iv_size, &hard_key_size))
-        return -1;
+    Py_ssize_t iv_size;
+    int hard_key_size = 0;
+    if (!PyArg_ParseTuple(args, "iiy#y#y#|i", &mode, &block_size, &key, &key_size, &iv, &iv_size, &hard_key_size))
+        return NULL;
 
     // check input
     if (mode > CRijndael::CFB)
@@ -37,30 +35,32 @@ Rijndael_init(RijndaelObject *self, PyObject *args, PyObject *kwds)
         return -1;
     }
 
-    if (!hard_key_size)
-    { //if key size not set, base it on the length of the key
-        hard_key_size = (key_size % 8) ? key_size + (8 - (key_size % 8)) : key_size;
-    }
-    if (hard_key_size != 16 && hard_key_size != 24 && hard_key_size != 32)
+    // fix key size if necessary
+    if (hard_key_size == 0)
+        hard_key_size = key_size;
+    if (hard_key_size % 8)
     {
-        PyErr_SetString(PyExc_ValueError, "invalid key size");
-        return -1;
+        hard_key_size += 8 - (hard_key_size % 8);
     }
-    char *Key = (char *)PyMem_Malloc(hard_key_size);
-    memcpy(Key, key, key_size);
-    memset(Key + key_size, 0, hard_key_size - key_size);
-    char *IV = (char *)PyMem_Malloc(block_size);
-    memset(IV, 0, block_size);
-    memcpy(IV, 0, iv_size);
+    if (hard_key_size > 32)
+    {
+        hard_key_size = 32;
+    }
+
+    // set key and iv
+    char Key[32] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    char IV[32] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+    memcpy(Key, key, (key_size > 32) ? 32 : key_size);
+    memcpy(IV, iv, (iv_size > 32) ? 32 : iv_size);
+
+    // make key
     self->rj.MakeKey(Key, IV, hard_key_size, block_size);
-    PyMem_Free(Key);
-    PyMem_Free(IV);
     return 0;
 }
 
 static void Rijndael_dealloc(RijndaelObject *self)
 {
-    //delete (self->rj);
     Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
@@ -115,13 +115,21 @@ static PyObject *Rijndael_EncryptBlock(RijndaelObject *self, PyObject *args)
 {
     char *in;
     Py_ssize_t in_size;
-    char *out;
 
     if (!PyArg_ParseTuple(args, "y#", &in, &in_size))
         return NULL;
-    out = (char *)PyMem_Malloc(in_size);
-    self->rj.EncryptBlock(in, out);
-    PyObject *ret = PyBytes_FromStringAndSize(out, in_size);
+    char *out = (char *)PyMem_Malloc(in_size);
+    PyObject *ret = NULL;
+    try
+    {
+        self->rj.EncryptBlock(in, out);
+        ret = Py_BuildValue("y#", out, in_size);
+    }
+    catch (...)
+    {
+        PyErr_SetString(PyExc_ValueError, "unknown error occured during the encryption");
+    }
+
     PyMem_Free(out);
     return ret;
 }
@@ -130,13 +138,21 @@ static PyObject *Rijndael_DecryptBlock(RijndaelObject *self, PyObject *args)
 {
     char *in;
     Py_ssize_t in_size;
-    char *out;
 
     if (!PyArg_ParseTuple(args, "y#", &in, &in_size))
         return NULL;
-    out = (char *)PyMem_Malloc(in_size);
-    self->rj.DecryptBlock(in, out);
-    PyObject *ret = PyBytes_FromStringAndSize(out, in_size);
+    char *out = (char *)PyMem_Malloc(in_size);
+    PyObject *ret = NULL;
+    try
+    {
+        self->rj.DecryptBlock(in, out);
+        ret = Py_BuildValue("y#", out, in_size);
+    }
+    catch (...)
+    {
+        PyErr_SetString(PyExc_ValueError, "unknown error occured during the encryption");
+    }
+
     PyMem_Free(out);
     return ret;
 }
@@ -145,13 +161,22 @@ static PyObject *Rijndael_Encrypt(RijndaelObject *self, PyObject *args)
 {
     char *in;
     Py_ssize_t in_size;
-    char *out;
 
     if (!PyArg_ParseTuple(args, "y#", &in, &in_size))
         return NULL;
-    out = (char *)PyMem_Malloc(in_size);
-    self->rj.Encrypt(in, out, in_size, self->mode);
-    PyObject *ret = PyBytes_FromStringAndSize(out, in_size);
+
+    char *out = (char *)PyMem_Malloc(in_size);
+    PyObject *ret = NULL;
+    try
+    {
+        self->rj.Encrypt(in, out, in_size, self->mode);
+        ret = Py_BuildValue("y#", out, in_size);
+    }
+    catch (...)
+    {
+        PyErr_SetString(PyExc_ValueError, "unknown error occured during the encryption");
+    }
+
     PyMem_Free(out);
     return ret;
 }
@@ -160,14 +185,22 @@ static PyObject *Rijndael_Decrypt(RijndaelObject *self, PyObject *args)
 {
     char *in;
     Py_ssize_t in_size;
-    char *out;
 
     if (!PyArg_ParseTuple(args, "y#", &in, &in_size))
         return NULL;
-    out = (char *)PyMem_Malloc(in_size);
-    memset(out, 0, in_size);
-    self->rj.Decrypt(in, out, in_size, self->mode);
-    PyObject *ret = PyBytes_FromStringAndSize(out, in_size);
+
+    char *out = (char *)PyMem_Malloc(in_size);
+    PyObject *ret = NULL;
+    try
+    {
+        self->rj.Decrypt(in, out, in_size, self->mode);
+        ret = Py_BuildValue("y#", out, in_size);
+    }
+    catch (...)
+    {
+        PyErr_SetString(PyExc_ValueError, "unknown error occured during the decryption");
+    }
+
     PyMem_Free(out);
     return ret;
 }
@@ -261,11 +294,17 @@ static PyObject *decrypt(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "iiy#y#y#|i", &mode, &block_size, &key, &key_size, &iv, &iv_size, &input, &input_size, &hard_key_size))
         return NULL;
 
-    char Key[32] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-    char IV[32] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-
-    memcpy(Key, key, (key_size > 32) ? 32 : key_size);
-    memcpy(IV, iv, (iv_size > 32) ? 32 : iv_size);
+    // check input
+    if (mode > CRijndael::CFB)
+    {
+        PyErr_SetString(PyExc_ValueError, "invalid mode (ECB = 0, CBC = 1, CFB = 2)");
+        return NULL;
+    }
+    if (block_size != 16 && block_size != 24 && block_size != 32)
+    {
+        PyErr_SetString(PyExc_ValueError, "invalid block size");
+        return NULL;
+    }
 
     // fix key size if necessary
     if (hard_key_size == 0)
@@ -279,19 +318,29 @@ static PyObject *decrypt(PyObject *self, PyObject *args)
         hard_key_size = 32;
     }
 
+    // set key and iv
+    char Key[32] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    char IV[32] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+    memcpy(Key, key, (key_size > 32) ? 32 : key_size);
+    memcpy(IV, iv, (iv_size > 32) ? 32 : iv_size);
+
+
+    // decrypt
     char *out = (char *)PyMem_Malloc(input_size);
+    PyObject *ret = NULL;
     try
     {
         CRijndael rj;
         rj.MakeKey(Key, IV, hard_key_size, block_size);
         rj.Decrypt(input, out, input_size, mode);
+        ret = Py_BuildValue("y#", out, input_size);
     }
     catch (...)
     {
         PyErr_SetString(PyExc_ValueError, "unknown error occured during the decryption");
-        return NULL;
     }
-    PyObject *ret = Py_BuildValue("y#", out, input_size);
+
     PyMem_Free(out);
     return ret;
 }
@@ -310,11 +359,17 @@ static PyObject *encrypt(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "iiy#y#y#|i", &mode, &block_size, &key, &key_size, &iv, &iv_size, &input, &input_size, &hard_key_size))
         return NULL;
 
-    char Key[32] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-    char IV[32] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-
-    memcpy(Key, key, (key_size > 32) ? 32 : key_size);
-    memcpy(IV, iv, (iv_size > 32) ? 32 : iv_size);
+    // check input
+    if (mode > CRijndael::CFB)
+    {
+        PyErr_SetString(PyExc_ValueError, "invalid mode (ECB = 0, CBC = 1, CFB = 2)");
+        return NULL;
+    }
+    if (block_size != 16 && block_size != 24 && block_size != 32)
+    {
+        PyErr_SetString(PyExc_ValueError, "invalid block size");
+        return NULL;
+    }
 
     // fix key size if necessary
     if (hard_key_size == 0)
@@ -328,19 +383,29 @@ static PyObject *encrypt(PyObject *self, PyObject *args)
         hard_key_size = 32;
     }
 
+    // set key and iv
+    char Key[32] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    char IV[32] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+    memcpy(Key, key, (key_size > 32) ? 32 : key_size);
+    memcpy(IV, iv, (iv_size > 32) ? 32 : iv_size);
+
+
+    // encrypt
     char *out = (char *)PyMem_Malloc(input_size);
+    PyObject *ret = NULL;
     try
     {
         CRijndael rj;
         rj.MakeKey(Key, IV, hard_key_size, block_size);
         rj.Encrypt(input, out, input_size, mode);
+        ret = Py_BuildValue("y#", out, input_size);
     }
     catch (...)
     {
-        PyErr_SetString(PyExc_ValueError, "unknown error occured during the decryption");
-        return NULL;
+        PyErr_SetString(PyExc_ValueError, "unknown error occured during the encryption");
     }
-    PyObject *ret = Py_BuildValue("y#", out, input_size);
+
     PyMem_Free(out);
     return ret;
 }
