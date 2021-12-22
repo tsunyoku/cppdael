@@ -1,8 +1,15 @@
+import platform
 import sys
 from setuptools import setup, Extension
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
+
+extra_compile_args = []
+if sys.platform != "win32":
+    extra_compile_args.append("-std=c++2a")
+if platform.machine() == "aarch64":
+    extra_compile_args.append("-fsigned-char")
 
 setup(
     name="cppdael",
@@ -26,7 +33,7 @@ setup(
             "cppdael",
             ["extension.cpp", "rijndael.cpp"],
             language="c++",
-            extra_compile_args=["{}std=c++2a".format('/' if sys.platform == "win32" else '-')],
+            extra_compile_args=extra_compile_args,
         )
     ],
 )
