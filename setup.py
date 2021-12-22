@@ -1,6 +1,6 @@
 import platform
 import sys
-from setuptools import setup, Extension
+from setuptools import setup, Extension, find_packages
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -28,9 +28,11 @@ setup(
     download_url="https://github.com/tsunyoku/cppdael/tarball/master",
     long_description=long_description,
     long_description_content_type="text/markdown",
+    packages=find_packages(exclude=["*.github*"]),
+    package_data={"cppdael": ["__init__.py*", "py.typed"]},
     ext_modules=[
         Extension(
-            "cppdael",
+            "cppdael.cppdael",
             ["extension.cpp", "rijndael.cpp"],
             language="c++",
             extra_compile_args=extra_compile_args,
